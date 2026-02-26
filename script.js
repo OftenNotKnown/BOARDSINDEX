@@ -1,41 +1,28 @@
-// 🔧 CONFIG — CHANGE THESE
-const SUPABASE_URL = "https://chnjmdbmvjbnxxtllqwc.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNobmptZGJtdmpibnh4dGxscXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwODM2MTMsImV4cCI6MjA4NzY1OTYxM30.BYGzxR2q3sQGqPJnLLXv0z81JzSm6Ge0GgU-VYVQcRE";
-const ADMIN_EMAIL = "arduinodebugstick@outlook.com";
+// 🔑 SUPABASE CONFIG
+const SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co";
+const SUPABASE_KEY = "YOUR_PUBLIC_ANON_KEY";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 🔌 INIT
-const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+// 👑 ADMIN EMAIL
+const ADMIN_EMAIL = "admin@example.com"; // CHANGE THIS
 
-// 🔐 AUTH
-async function login() {
-  const emailValue = document.getElementById("email").value;
-  const passwordValue = document.getElementById("password").value;
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email: emailValue,
-    password: passwordValue
-  });
-
-  if (error) alert(error.message);
-}
+// ---------------- AUTH ----------------
 
 async function signup() {
-  const emailValue = document.getElementById("email").value;
-  const passwordValue = document.getElementById("password").value;
+  const email = email.value;
+  const password = password.value;
 
-  const { error } = await supabase.auth.signUp({
-    email: emailValue,
-    password: passwordValue
-  });
+  const { error } = await supabase.auth.signUp({ email, password });
+  if (error) alert(error.message);
+  else alert("Check your email to confirm.");
+}
 
-  if (error) {
-    alert(error.message);
-  } else {
-    alert("Signup successful. Check your email if confirmation is enabled.");
-  }
+async function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) alert(error.message);
 }
 
 async function logout() {
@@ -43,29 +30,26 @@ async function logout() {
   location.reload();
 }
 
-// 📤 SUBMIT WORK
-async function submitWork() {
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+// ---------------- SUBMISSION ----------------
 
-  if (!user) {
-    alert("Not logged in");
-    return;
-  }
+async function submitWork() {
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) return alert("Login required");
 
   const { error } = await supabase.from("submissions").insert({
-    date: document.getElementById("date").value,
-    notebook: document.getElementById("notebook").value,
-    title: document.getElementById("title").value,
-    content: document.getElementById("content").value,
+    date: date.value,
+    notebook: notebook.value,
+    title: title.value,
+    content: content.value,
     submitted_by: user.id
   });
 
   if (error) alert(error.message);
-  else alert("Submitted for review.");
+  else alert("Submitted for review");
 }
 
-// 📚 LOAD APPROVED ENTRIES
+// ---------------- LOAD APPROVED ----------------
+
 async function loadEntries() {
   const { data, error } = await supabase
     .from("entries")
@@ -79,40 +63,42 @@ async function loadEntries() {
 
   data.forEach(e => {
     const div = document.createElement("div");
-    div.className = "card";
     div.innerHTML = `
       <strong>${e.title}</strong><br/>
       <em>${e.notebook} — ${e.date}</em>
       <pre>${e.content}</pre>
+      <hr/>
     `;
     container.appendChild(div);
   });
 }
 
-// 🛡️ ADMIN PANEL
+// ---------------- ADMIN ----------------
+
 async function loadAdminPanel(user) {
   if (user.email !== ADMIN_EMAIL) return;
 
   document.getElementById("adminPanel").style.display = "block";
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("submissions")
     .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
+    .eq("status", "pending");
+
+  if (error) return alert(error.message);
 
   const container = document.getElementById("pendingSubmissions");
   container.innerHTML = "";
 
   data.forEach(sub => {
     const div = document.createElement("div");
-    div.className = "card";
     div.innerHTML = `
       <strong>${sub.title}</strong><br/>
       <em>${sub.notebook} — ${sub.date}</em>
       <pre>${sub.content}</pre>
       <button onclick="approve('${sub.id}')">Approve</button>
       <button onclick="reject('${sub.id}')">Reject</button>
+      <hr/>
     `;
     container.appendChild(div);
   });
@@ -141,18 +127,15 @@ async function reject(id) {
   location.reload();
 }
 
-// 🔁 SESSION HANDLING (FIXED)
-supabase.auth.onAuthStateChange((_, session) => {
-  const authSection = document.getElementById("auth");
-  const appSection = document.getElementById("app");
+// ---------------- SESSION ----------------
 
-  if (session) {
-    authSection.style.display = "none";
-    appSection.style.display = "block";
-    loadEntries();
+supabase.auth.onAuthStateChange((_, session) => {
+  if (session?.user) {
+    auth.style.display = "none";
+    submitSection.style.display = "block";
+    logoutBtn.style.display = "block";
     loadAdminPanel(session.user);
-  } else {
-    authSection.style.display = "block";
-    appSection.style.display = "none";
   }
 });
+
+loadEntries();
