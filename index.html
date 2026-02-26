@@ -7,8 +7,8 @@
   <style>
     body { font-family: sans-serif; max-width: 900px; margin: auto; }
     pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
-    input { margin-right: 10px; }
-    li { margin-bottom: 20px; }
+    input, textarea { width: 100%; margin-bottom: 10px; }
+    li { margin-bottom: 25px; }
   </style>
 </head>
 
@@ -25,14 +25,24 @@
 
 <!-- APP -->
 <div id="app" style="display:none;">
+
   <button onclick="logout()">Logout</button>
 
-  <h2>Entries</h2>
+  <h2>Submit New Work</h2>
+  <input id="subDate" type="date" />
+  <input id="subNotebook" placeholder="Notebook" />
+  <input id="subTitle" placeholder="Title" />
+  <textarea id="subContent" rows="6" placeholder="Paste your work here"></textarea>
+  <button onclick="submitWork()">Submit for Review</button>
 
-  <label>Notebook:</label>
+  <hr>
+
+  <h2>Approved Entries</h2>
+
+  <label>Notebook filter</label>
   <input id="notebookFilter" oninput="loadEntries()" />
 
-  <label>Date:</label>
+  <label>Date filter</label>
   <input type="date" id="dateFilter" onchange="loadEntries()" />
 
   <button onclick="downloadAll()">Download All</button>
@@ -40,117 +50,8 @@
   <ul id="entries"></ul>
 </div>
 
-<script>
-/* 🔐 SUPABASE CONFIG — REPLACE THESE */
-const SUPABASE_URL = "https://chnjmdbmvjbnxxtllqwc.supabase.co"
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNobmptZGJtdmpibnh4dGxscXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwODM2MTMsImV4cCI6MjA4NzY1OTYxM30.BYGzxR2q3sQGqPJnLLXv0z81JzSm6Ge0GgU-VYVQcRE"
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-
-/* ELEMENTS */
-const loginDiv = document.getElementById("login")
-const appDiv = document.getElementById("app")
-const entriesList = document.getElementById("entries")
-
-/* AUTH */
-async function login() {
-  const email = document.getElementById("email").value
-  const password = document.getElementById("password").value
-
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email,
-    password
-  })
-
-  if (error) {
-    alert(error.message)
-  } else {
-    showApp()
-  }
-}
-
-async function logout() {
-  await supabaseClient.auth.signOut()
-  location.reload()
-}
-
-/* APP */
-function showApp() {
-  loginDiv.style.display = "none"
-  appDiv.style.display = "block"
-  loadEntries()
-}
-
-async function loadEntries() {
-  let query = supabaseClient
-    .from("entries")
-    .select("*")
-    .order("date", { ascending: true })
-
-  const notebook = document.getElementById("notebookFilter").value
-  const date = document.getElementById("dateFilter").value
-
-  if (notebook) query = query.ilike("notebook", `%${notebook}%`)
-  if (date) query = query.eq("date", date)
-
-  const { data, error } = await query
-
-  if (error) {
-    alert(error.message)
-    return
-  }
-
-  entriesList.innerHTML = ""
-
-  data.forEach(e => {
-    const li = document.createElement("li")
-    li.innerHTML = `
-      <strong>${e.title}</strong> (${e.date})<br>
-      <em>${e.notebook}</em>
-      <pre>${e.content}</pre>
-      <button onclick="downloadEntry('${e.id}')">Download</button>
-    `
-    entriesList.appendChild(li)
-  })
-}
-
-/* DOWNLOADS */
-async function downloadEntry(id) {
-  const { data } = await supabaseClient
-    .from("entries")
-    .select("title, content")
-    .eq("id", id)
-    .single()
-
-  const blob = new Blob([data.content], { type: "text/plain" })
-  const a = document.createElement("a")
-  a.href = URL.createObjectURL(blob)
-  a.download = `${data.title}.txt`
-  a.click()
-}
-
-async function downloadAll() {
-  const { data } = await supabaseClient
-    .from("entries")
-    .select("title, content")
-
-  let combined = ""
-  data.forEach(e => {
-    combined += `### ${e.title}\n\n${e.content}\n\n`
-  })
-
-  const blob = new Blob([combined], { type: "text/plain" })
-  const a = document.createElement("a")
-  a.href = URL.createObjectURL(blob)
-  a.download = "curriculum.txt"
-  a.click()
-}
-
-/* AUTO LOGIN */
-supabaseClient.auth.getSession().then(({ data }) => {
-  if (data.session) showApp()
-})
-</script>
+<!-- YOUR APP LOGIC -->
+<script src="app.js"></script>
 
 </body>
 </html>
