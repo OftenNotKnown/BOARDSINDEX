@@ -1,28 +1,116 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
   <title>Curriculum Archive</title>
-  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
-<body>
 
+<body>
   <h1>Curriculum Archive</h1>
 
-  <section id="controls">
-    <input type="date" id="dateInput" />
-    <button id="dateBtn">Load by Date</button>
+  <!-- LOGIN -->
+  <div id="login">
+    <input id="email" placeholder="email" />
+    <input id="password" type="password" placeholder="password" />
+    <button onclick="login()">Login</button>
+  </div>
 
-    <input type="text" id="searchInput" placeholder="Search keyword…" />
-    <button id="searchBtn">Search</button>
-  </section>
+  <!-- APP -->
+  <div id="app" style="display:none">
+    <button onclick="logout()">Logout</button>
 
-  <section id="results"></section>
+    <h2>Entries</h2>
 
-  <!-- Supabase CDN -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <label>Notebook:</label>
+    <input id="notebookFilter" oninput="loadEntries()" />
 
-  <!-- Your app logic -->
-  <script src="app.js"></script>
+    <label>Date:</label>
+    <input type="date" id="dateFilter" onchange="loadEntries()" />
+
+    <button onclick="downloadAll()">Download All</button>
+
+    <ul id="entries"></ul>
+  </div>
+
+<script>
+const supabase = supabase.createClient(
+  "https://chnjmdbmvjbnxxtllqwc.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNobmptZGJtdmpibnh4dGxscXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwODM2MTMsImV4cCI6MjA4NzY1OTYxM30.BYGzxR2q3sQGqPJnLLXv0z81JzSm6Ge0GgU-VYVQcRE"
+)
+
+async function login() {
+  const email = email.value
+  const password = password.value
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) alert(error.message)
+  else showApp()
+}
+
+async function logout() {
+  await supabase.auth.signOut()
+  location.reload()
+}
+
+async function showApp() {
+  login.style.display = "none"
+  app.style.display = "block"
+  loadEntries()
+}
+
+async function loadEntries() {
+  let query = supabase.from("entries").select("*").order("date")
+
+  if (notebookFilter.value)
+    query = query.ilike("notebook", `%${notebookFilter.value}%`)
+
+  if (dateFilter.value)
+    query = query.eq("date", dateFilter.value)
+
+  const { data } = await query
+  entries.innerHTML = ""
+
+  data.forEach(e => {
+    const li = document.createElement("li")
+    li.innerHTML = `
+      <strong>${e.title}</strong> (${e.date})<br>
+      <pre>${e.content}</pre>
+      <button onclick="downloadEntry('${e.id}')">Download</button>
+    `
+    entries.appendChild(li)
+  })
+}
+
+async function downloadEntry(id) {
+  const { data } = await supabase
+    .from("entries")
+    .select("title,content")
+    .eq("id", id)
+    .single()
+
+  const blob = new Blob([data.content], { type: "text/plain" })
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = data.title + ".txt"
+  a.click()
+}
+
+async function downloadAll() {
+  const { data } = await supabase.from("entries").select("title,content")
+  let text = ""
+  data.forEach(e => {
+    text += `### ${e.title}\n\n${e.content}\n\n`
+  })
+  const blob = new Blob([text], { type: "text/plain" })
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = "curriculum.txt"
+  a.click()
+}
+
+supabase.auth.getSession().then(({ data }) => {
+  if (data.session) showApp()
+})
+</script>
 </body>
 </html>
