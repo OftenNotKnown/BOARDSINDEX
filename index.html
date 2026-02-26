@@ -4,87 +4,22 @@
   <meta charset="UTF-8" />
   <title>Text Database Explorer</title>
   <style>
-    body {
-      margin: 0;
-      font-family: monospace;
-      background: #0f1115;
-      color: #e6e6e6;
-      display: flex;
-      height: 100vh;
-    }
-    #sidebar {
-      width: 260px;
-      border-right: 1px solid #2a2a2a;
-      padding: 12px;
-      overflow-y: auto;
-      background: #11141a;
-    }
-    #main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-    #viewer {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      background: #151821;
-      line-height: 1.4;
-    }
-    #terminal {
-      height: 220px;
-      border-top: 1px solid #333;
-      background: #000;
-      padding: 8px;
-      display: none;
-      flex-direction: column;
-    }
-    #output {
-      flex: 1;
-      overflow-y: auto;
-      font-size: 13px;
-    }
-    #input {
-      border: none;
-      outline: none;
-      background: #000;
-      color: #0f0;
-      font-family: monospace;
-      font-size: 13px;
-    }
-    .file {
-      cursor: pointer;
-      padding: 6px 4px;
-      border-radius: 4px;
-    }
-    .file:hover {
-      background: #222;
-    }
-    h3 {
-      margin-top: 0;
-      font-size: 16px;
-    }
-    button {
-      background: #2b5cff;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    button.secondary {
-      background: #333;
-      margin-left: 6px;
-    }
-    #toolbar {
-      padding: 8px;
-      border-bottom: 1px solid #333;
-      display: flex;
-      gap: 6px;
-      background: #0f1115;
-    }
+    body { margin: 0; font-family: monospace; background: #0f1115; color: #e6e6e6; display: flex; height: 100vh; }
+    #sidebar { width: 280px; border-right: 1px solid #2a2a2a; padding: 12px; overflow-y: auto; background: #11141a; }
+    #main { flex: 1; display: flex; flex-direction: column; }
+    #viewer { flex: 1; padding: 16px; overflow-y: auto; white-space: pre-wrap; background: #151821; line-height: 1.4; }
+    #terminal { height: 220px; border-top: 1px solid #333; background: #000; padding: 8px; display: none; flex-direction: column; }
+    #output { flex: 1; overflow-y: auto; font-size: 13px; }
+    #input { border: none; outline: none; background: #000; color: #0f0; font-family: monospace; font-size: 13px; }
+    .file { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 4px; border-radius: 4px; gap: 6px; }
+    .file:hover { background: #222; }
+    .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dl { background: #333; color: #fff; border: none; border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; }
+    .dl:hover { background: #444; }
+    h3 { margin-top: 0; font-size: 16px; }
+    button { background: #2b5cff; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    button.secondary { background: #333; margin-left: 6px; }
+    #toolbar { padding: 8px; border-bottom: 1px solid #333; display: flex; gap: 6px; background: #0f1115; }
   </style>
 </head>
 <body>
@@ -104,7 +39,7 @@
 
     <div id="terminal">
       <div id="output"></div>
-      <input id="input" placeholder="$ ls | open file.txt | close" />
+      <input id="input" placeholder="$ ls | open file.txt | download file.txt | clear" />
     </div>
   </div>
 
@@ -123,11 +58,23 @@ function renderFiles(list) {
   const fileList = document.getElementById('fileList');
   fileList.innerHTML = '';
   list.forEach(f => {
-    const div = document.createElement('div');
-    div.textContent = f.name;
-    div.className = 'file';
-    div.onclick = () => openTextFile(f.name);
-    fileList.appendChild(div);
+    const row = document.createElement('div');
+    row.className = 'file';
+
+    const name = document.createElement('div');
+    name.className = 'file-name';
+    name.textContent = f.name;
+    name.onclick = () => openTextFile(f.name);
+
+    const dl = document.createElement('button');
+    dl.className = 'dl';
+    dl.textContent = '↓';
+    dl.title = 'Download';
+    dl.onclick = (e) => { e.stopPropagation(); downloadFile(f.name); };
+
+    row.appendChild(name);
+    row.appendChild(dl);
+    fileList.appendChild(row);
   });
 }
 
@@ -150,6 +97,20 @@ function toggleTerminal() {
   t.style.display = t.style.display === 'none' ? 'flex' : 'none';
 }
 
+async function downloadFile(name) {
+  const res = await fetch(DATA_PATH + name);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  log(`Downloaded ${name}`);
+}
+
 function log(msg) {
   const out = document.getElementById('output');
   out.innerHTML += msg + '<br>';
@@ -162,6 +123,8 @@ function handleCommand(cmd) {
     files.forEach(f => log(f.name));
   } else if (parts[0] === 'open' && parts[1]) {
     openTextFile(parts[1]);
+  } else if (parts[0] === 'download' && parts[1]) {
+    downloadFile(parts[1]);
   } else if (parts[0] === 'close') {
     closeFile();
   } else if (parts[0] === 'clear') {
