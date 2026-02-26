@@ -11,20 +11,31 @@ const supabase = window.supabase.createClient(
 
 // 🔐 AUTH
 async function login() {
-  const email = email.value;
-  const password = password.value;
+  const emailValue = document.getElementById("email").value;
+  const passwordValue = document.getElementById("password").value;
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({
+    email: emailValue,
+    password: passwordValue
+  });
+
   if (error) alert(error.message);
 }
 
 async function signup() {
-  const email = email.value;
-  const password = password.value;
+  const emailValue = document.getElementById("email").value;
+  const passwordValue = document.getElementById("password").value;
 
-  const { error } = await supabase.auth.signUp({ email, password });
-  if (error) alert(error.message);
-  else alert("Check email to confirm signup.");
+  const { error } = await supabase.auth.signUp({
+    email: emailValue,
+    password: passwordValue
+  });
+
+  if (error) {
+    alert(error.message);
+  } else {
+    alert("Signup successful. Check your email if confirmation is enabled.");
+  }
 }
 
 async function logout() {
@@ -34,13 +45,19 @@ async function logout() {
 
 // 📤 SUBMIT WORK
 async function submitWork() {
-  const user = (await supabase.auth.getUser()).data.user;
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+
+  if (!user) {
+    alert("Not logged in");
+    return;
+  }
 
   const { error } = await supabase.from("submissions").insert({
-    date: date.value,
-    notebook: notebook.value,
-    title: title.value,
-    content: content.value,
+    date: document.getElementById("date").value,
+    notebook: document.getElementById("notebook").value,
+    title: document.getElementById("title").value,
+    content: document.getElementById("content").value,
     submitted_by: user.id
   });
 
@@ -50,10 +67,12 @@ async function submitWork() {
 
 // 📚 LOAD APPROVED ENTRIES
 async function loadEntries() {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("entries")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (error) return;
 
   const container = document.getElementById("entries");
   container.innerHTML = "";
@@ -122,12 +141,18 @@ async function reject(id) {
   location.reload();
 }
 
-// 🔁 SESSION HANDLING
+// 🔁 SESSION HANDLING (FIXED)
 supabase.auth.onAuthStateChange((_, session) => {
+  const authSection = document.getElementById("auth");
+  const appSection = document.getElementById("app");
+
   if (session) {
-    auth.style.display = "none";
-    app.style.display = "block";
+    authSection.style.display = "none";
+    appSection.style.display = "block";
     loadEntries();
     loadAdminPanel(session.user);
+  } else {
+    authSection.style.display = "block";
+    appSection.style.display = "none";
   }
 });
