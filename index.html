@@ -44,7 +44,9 @@
   </div>
 
 <script>
-const DATA_PATH = './DATA/';
+// GitHub Pages-safe path resolution
+const BASE_PATH = window.location.pathname.replace(/\/[^/]*$/, '/');
+const DATA_PATH = BASE_PATH + 'DATA/';
 let files = [];
 let openFile = null;
 
