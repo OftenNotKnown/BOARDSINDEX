@@ -1,10 +1,10 @@
 // 🔑 SUPABASE CONFIG
-const SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co";
-const SUPABASE_KEY = "YOUR_PUBLIC_ANON_KEY";
+const SUPABASE_URL = "https://chnjmdbmvjbnxxtllqwc.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNobmptZGJtdmpibnh4dGxscXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwODM2MTMsImV4cCI6MjA4NzY1OTYxM30.BYGzxR2q3sQGqPJnLLXv0z81JzSm6Ge0GgU-VYVQcRE";
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 👑 ADMIN EMAIL
-const ADMIN_EMAIL = "admin@example.com"; // CHANGE THIS
+const ADMIN_EMAIL = "arduinodebugstick@outlook.com"; // CHANGE THIS
 
 // ---------------- AUTH ----------------
 
