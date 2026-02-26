@@ -1,6 +1,6 @@
 /* 🔐 SUPABASE CONFIG — REQUIRED */
 const SUPABASE_URL = "https://chnjmdbmvjbnxxtllqwc.supabase.co"
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNobmptZGJtdmpibnh4dGxscXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwODM2MTMsImV4cCI6MjA4NzY1OTYxM30.BYGzxR2q3sQGqPJnLLXv0z81JzSm6Ge0GgU-VYVQcRE"
+const SUPABASE_KEY = "sb_publishable_C2416_uJ2TYUM2U0wgL2Eg_qkGpX2MW"
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
