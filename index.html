@@ -14,9 +14,10 @@
     }
     #sidebar {
       width: 260px;
-      border-right: 1px solid #333;
-      padding: 10px;
+      border-right: 1px solid #2a2a2a;
+      padding: 12px;
       overflow-y: auto;
+      background: #11141a;
     }
     #main {
       flex: 1;
@@ -25,22 +26,24 @@
     }
     #viewer {
       flex: 1;
-      padding: 12px;
+      padding: 16px;
       overflow-y: auto;
       white-space: pre-wrap;
       background: #151821;
+      line-height: 1.4;
     }
     #terminal {
       height: 220px;
       border-top: 1px solid #333;
       background: #000;
       padding: 8px;
-      display: flex;
+      display: none;
       flex-direction: column;
     }
     #output {
       flex: 1;
       overflow-y: auto;
+      font-size: 13px;
     }
     #input {
       border: none;
@@ -48,31 +51,60 @@
       background: #000;
       color: #0f0;
       font-family: monospace;
+      font-size: 13px;
     }
     .file {
       cursor: pointer;
-      padding: 4px;
+      padding: 6px 4px;
+      border-radius: 4px;
     }
     .file:hover {
       background: #222;
     }
     h3 {
       margin-top: 0;
+      font-size: 16px;
+    }
+    button {
+      background: #2b5cff;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button.secondary {
+      background: #333;
+      margin-left: 6px;
+    }
+    #toolbar {
+      padding: 8px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      gap: 6px;
+      background: #0f1115;
     }
   </style>
 </head>
 <body>
   <div id="sidebar">
     <h3>DATA</h3>
-    <input id="search" placeholder="Search by date (YYYY-MM-DD)" style="width:100%; margin-bottom:6px;" />
+    <input id="search" placeholder="Search by date (YYYY-MM-DD)" style="width:100%; margin-bottom:8px;" />
     <div id="fileList"></div>
   </div>
 
   <div id="main">
+    <div id="toolbar">
+      <button onclick="toggleTerminal()">Toggle Terminal</button>
+      <button class="secondary" onclick="closeFile()">Close File</button>
+    </div>
+
     <div id="viewer">Select a file to view its contents.</div>
+
     <div id="terminal">
       <div id="output"></div>
-      <input id="input" placeholder="$ type a command (ls, open file.txt, close)" />
+      <input id="input" placeholder="$ ls | open file.txt | close" />
     </div>
   </div>
 
@@ -109,8 +141,13 @@ async function openTextFile(name) {
 
 function closeFile() {
   document.getElementById('viewer').textContent = 'File closed.';
-  log(`Closed ${openFile}`);
+  if (openFile) log(`Closed ${openFile}`);
   openFile = null;
+}
+
+function toggleTerminal() {
+  const t = document.getElementById('terminal');
+  t.style.display = t.style.display === 'none' ? 'flex' : 'none';
 }
 
 function log(msg) {
@@ -123,16 +160,18 @@ function handleCommand(cmd) {
   const parts = cmd.split(' ');
   if (parts[0] === 'ls') {
     files.forEach(f => log(f.name));
-  } else if (parts[0] === 'open') {
+  } else if (parts[0] === 'open' && parts[1]) {
     openTextFile(parts[1]);
   } else if (parts[0] === 'close') {
     closeFile();
+  } else if (parts[0] === 'clear') {
+    document.getElementById('output').innerHTML = '';
   } else {
     log('Unknown command');
   }
 }
 
-// search by date metadata
+// search by date
 
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value;
