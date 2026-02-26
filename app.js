@@ -1,8 +1,20 @@
 /* 🔐 SUPABASE CONFIG — REQUIRED */
 const SUPABASE_URL = "https://chnjmdbmvjbnxxtllqwc.supabase.co"
-const SUPABASE_KEY = "sb_publishable_C2416_uJ2TYUM2U0wgL2Eg_qkGpX2MW"
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNobmptZGJtdmpibnh4dGxscXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwODM2MTMsImV4cCI6MjA4NzY1OTYxM30.BYGzxR2q3sQGqPJnLLXv0z81JzSm6Ge0GgU-VYVQcRE"
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+/* ✅ MOBILE-SAFE AUTH CONFIG (LOCKMANAGER FIX) */
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage
+    }
+  }
+)
 
 /* ELEMENTS */
 const loginDiv = document.getElementById("login")
@@ -19,8 +31,11 @@ async function login() {
     password
   })
 
-  if (error) alert(error.message)
-  else showApp()
+  if (error) {
+    alert(error.message)
+  } else {
+    showApp()
+  }
 }
 
 async function logout() {
@@ -65,9 +80,15 @@ async function loadEntries() {
   })
 }
 
-/* SUBMIT NEW WORK (PR MODEL) */
+/* SUBMIT NEW WORK (GITHUB-STYLE PR) */
 async function submitWork() {
-  const user = (await supabaseClient.auth.getUser()).data.user
+  const { data: userData } = await supabaseClient.auth.getUser()
+  const user = userData.user
+
+  if (!user) {
+    alert("You must be logged in to submit.")
+    return
+  }
 
   const { error } = await supabaseClient
     .from("submissions")
@@ -80,8 +101,12 @@ async function submitWork() {
       status: "pending"
     })
 
-  if (error) alert(error.message)
-  else alert("Submission sent for admin review")
+  if (error) {
+    alert(error.message)
+  } else {
+    alert("Submission sent for admin review.")
+    document.getElementById("subContent").value = ""
+  }
 }
 
 /* DOWNLOAD SINGLE ENTRY */
@@ -105,19 +130,19 @@ async function downloadAll() {
     .from("entries")
     .select("title, content")
 
-  let text = ""
+  let combined = ""
   data.forEach(e => {
-    text += `### ${e.title}\n\n${e.content}\n\n`
+    combined += `### ${e.title}\n\n${e.content}\n\n`
   })
 
-  const blob = new Blob([text], { type: "text/plain" })
+  const blob = new Blob([combined], { type: "text/plain" })
   const a = document.createElement("a")
   a.href = URL.createObjectURL(blob)
   a.download = "curriculum.txt"
   a.click()
 }
 
-/* AUTO LOGIN */
+/* AUTO LOGIN ON REFRESH */
 supabaseClient.auth.getSession().then(({ data }) => {
   if (data.session) showApp()
 })
