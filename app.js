@@ -65,7 +65,50 @@ async function showApp() {
     loadPendingImageDirs()
   }
 }
+/* ===================== TEXT SUBMISSION ===================== */
 
+async function submitWork() {
+  const user = (await supabaseClient.auth.getUser()).data.user
+
+  if (!user) {
+    alert("You must be logged in.")
+    return
+  }
+
+  const date = document.getElementById("subDate").value
+  const notebook = document.getElementById("subNotebook").value.trim()
+  const title = document.getElementById("subTitle").value.trim()
+  const content = document.getElementById("subContent").value.trim()
+
+  if (!date || !notebook || !title || !content) {
+    alert("All fields are required.")
+    return
+  }
+
+  const { error } = await supabaseClient
+    .from("submissions")
+    .insert({
+      date,
+      notebook,
+      title,
+      content,
+      uploaded_by: user.id,
+      status: "pending"
+    })
+
+  if (error) {
+    alert(error.message)
+    return
+  }
+
+  alert("Work submitted for review!")
+
+  // Clear form
+  document.getElementById("subDate").value = ""
+  document.getElementById("subNotebook").value = ""
+  document.getElementById("subTitle").value = ""
+  document.getElementById("subContent").value = ""
+}
 /* ===================== IMAGE UPLOAD ===================== */
 
 async function uploadImageDirectory() {
