@@ -7,8 +7,8 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 let isAdmin = false
 
 const compressionOptions = {
-  maxWidthOrHeight: 1600,
-  initialQuality: 0.5,
+  maxWidthOrHeight: 1000,
+  initialQuality: 0.25,
   fileType: "image/webp",
   useWebWorker: true
 }
@@ -65,50 +65,37 @@ async function showApp() {
     loadPendingImageDirs()
   }
 }
-/* ===================== TEXT SUBMISSION ===================== */
 
-async function submitWork() {
-  const user = (await supabaseClient.auth.getUser()).data.user
+/* ===================== GRAYSCALE CONVERSION ===================== */
 
-  if (!user) {
-    alert("You must be logged in.")
-    return
+async function convertToGrayscale(file) {
+  const bitmap = await createImageBitmap(file)
+
+  const canvas = document.createElement("canvas")
+  const ctx = canvas.getContext("2d")
+
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+
+  ctx.drawImage(bitmap, 0, 0)
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const data = imageData.data
+
+  for (let i = 0; i < data.length; i += 4) {
+    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3
+    data[i] = avg
+    data[i + 1] = avg
+    data[i + 2] = avg
   }
 
-  const date = document.getElementById("subDate").value
-  const notebook = document.getElementById("subNotebook").value.trim()
-  const title = document.getElementById("subTitle").value.trim()
-  const content = document.getElementById("subContent").value.trim()
+  ctx.putImageData(imageData, 0, 0)
 
-  if (!date || !notebook || !title || !content) {
-    alert("All fields are required.")
-    return
-  }
-
-  const { error } = await supabaseClient
-    .from("submissions")
-    .insert({
-      date,
-      notebook,
-      title,
-      content,
-      uploaded_by: user.id,
-      status: "pending"
-    })
-
-  if (error) {
-    alert(error.message)
-    return
-  }
-
-  alert("Work submitted for review!")
-
-  // Clear form
-  document.getElementById("subDate").value = ""
-  document.getElementById("subNotebook").value = ""
-  document.getElementById("subTitle").value = ""
-  document.getElementById("subContent").value = ""
+  return new Promise(resolve => {
+    canvas.toBlob(blob => resolve(blob), "image/webp", 0.4)
+  })
 }
+
 /* ===================== IMAGE UPLOAD ===================== */
 
 async function uploadImageDirectory() {
@@ -118,11 +105,6 @@ async function uploadImageDirectory() {
 
   if (!name || !files.length) {
     alert("Directory name and images are required")
-    return
-  }
-
-  if (typeof imageCompression !== "function") {
-    alert("Image compression failed to load. Refresh the page.")
     return
   }
 
@@ -139,7 +121,12 @@ async function uploadImageDirectory() {
 
   for (const file of files) {
     try {
-      const compressed = await imageCompression(file, compressionOptions)
+      // 🔥 Convert to grayscale first
+      const grayBlob = await convertToGrayscale(file)
+
+      // 🔥 Then compress aggressively
+      const compressed = await imageCompression(grayBlob, compressionOptions)
+
       const path = `${user.id}/${dir.id}/${crypto.randomUUID()}.webp`
 
       const { error: uploadError } = await supabaseClient.storage
@@ -163,6 +150,7 @@ async function uploadImageDirectory() {
   }
 
   alert("Image directory submitted for review")
+
   document.getElementById("dirName").value = ""
   document.getElementById("imageFiles").value = ""
 }
