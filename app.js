@@ -37,7 +37,7 @@ async function submitWork() {
     form.append("image", subImage.files[0])
   }
 
-  const res = await fetch("http://localhost:3000/process-submission", {
+  const res = await fetch("https://server-au82.onrender.com/", {
     method: "POST",
     body: form
   })
