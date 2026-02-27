@@ -5,6 +5,8 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 /* GLOBALS */
 let isAdmin = false
+let currentImages = []
+let currentIndex = 0
 
 const compressionOptions = {
   maxWidthOrHeight: 1000,
@@ -39,11 +41,8 @@ async function login() {
     password: passwordInput
   })
 
-  if (error) {
-    alert(error.message)
-  } else {
-    showApp()
-  }
+  if (error) alert(error.message)
+  else showApp()
 }
 
 async function logout() {
@@ -59,24 +58,24 @@ async function showApp() {
   isAdmin = data.user.email === "arduinodebugstick@outlook.com"
 
   loadImageDirs()
+  loadTextSubmissions()
 
   if (isAdmin) {
     adminPanel.style.display = "block"
     loadPendingImageDirs()
+    loadPendingTextSubmissions()
   }
 }
 
-/* ===================== GRAYSCALE CONVERSION ===================== */
+/* ===================== IMAGE PROCESSING ===================== */
 
 async function convertToGrayscale(file) {
   const bitmap = await createImageBitmap(file)
-
   const canvas = document.createElement("canvas")
   const ctx = canvas.getContext("2d")
 
   canvas.width = bitmap.width
   canvas.height = bitmap.height
-
   ctx.drawImage(bitmap, 0, 0)
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -114,17 +113,11 @@ async function uploadImageDirectory() {
     .select()
     .single()
 
-  if (dirError) {
-    alert(dirError.message)
-    return
-  }
+  if (dirError) return alert(dirError.message)
 
   for (const file of files) {
     try {
-      // 🔥 Convert to grayscale first
       const grayBlob = await convertToGrayscale(file)
-
-      // 🔥 Then compress aggressively
       const compressed = await imageCompression(grayBlob, compressionOptions)
 
       const path = `${user.id}/${dir.id}/${crypto.randomUUID()}.webp`
@@ -133,10 +126,7 @@ async function uploadImageDirectory() {
         .from("image_uploads")
         .upload(path, compressed)
 
-      if (uploadError) {
-        console.error(uploadError)
-        continue
-      }
+      if (uploadError) continue
 
       await supabaseClient.from("images").insert({
         directory_id: dir.id,
@@ -145,17 +135,14 @@ async function uploadImageDirectory() {
         filesize: compressed.size
       })
     } catch (err) {
-      console.error("Image failed:", err)
+      console.error(err)
     }
   }
 
   alert("Image directory submitted for review")
-
-  document.getElementById("dirName").value = ""
-  document.getElementById("imageFiles").value = ""
 }
 
-/* ===================== USER GALLERY ===================== */
+/* ===================== DIRECTORY LIST ===================== */
 
 async function loadImageDirs() {
   const q = document.getElementById("dirSearch").value
@@ -168,22 +155,22 @@ async function loadImageDirs() {
 
   if (q) query = query.ilike("name", `%${q}%`)
 
-  const { data, error } = await query
-  if (error) return alert(error.message)
-
+  const { data } = await query
   imageDirs.innerHTML = ""
 
   data.forEach(d => {
     const li = document.createElement("li")
     li.innerHTML = `
       <strong>${d.name}</strong><br><br>
-      <button onclick="openGallery('${d.id}')">Open</button>
+      <button onclick="openDirectory('${d.id}')">Open Directory</button>
     `
     imageDirs.appendChild(li)
   })
 }
 
-async function openGallery(directoryId) {
+/* ===================== DIRECTORY VIEW ===================== */
+
+async function openDirectory(directoryId) {
   galleryGrid.innerHTML = ""
   galleryModal.style.display = "block"
 
@@ -195,66 +182,131 @@ async function openGallery(directoryId) {
 
   galleryTitle.textContent = dir.name
 
-  const { data: images, error } = await supabaseClient
+  const { data: images } = await supabaseClient
     .from("images")
     .select("*")
     .eq("directory_id", directoryId)
-    .eq("status", "approved")
+    .order("created_at", { ascending: true })
 
-  if (error) return alert(error.message)
+  currentImages = images
 
-  images.forEach(img => {
-    const { data } = supabaseClient.storage
-      .from("image_uploads")
-      .getPublicUrl(img.storage_path)
-
+  images.forEach((img, index) => {
     const div = document.createElement("div")
     div.innerHTML = `
-      <img src="${data.publicUrl}" style="width:100%;border-radius:8px">
-      <button class="secondary" style="width:100%;margin-top:6px"
-        onclick="downloadImage('${img.storage_path}')">
-        Download
+      <button style="width:100%;padding:20px"
+        onclick="openImageViewer(${index})">
+        File ${index + 1}
       </button>
     `
     galleryGrid.appendChild(div)
   })
 }
 
-function closeGallery() {
-  galleryModal.style.display = "none"
+/* ===================== FULLSCREEN VIEWER ===================== */
+
+async function openImageViewer(index) {
+  currentIndex = index
+  document.getElementById("fileViewer").style.display = "block"
+  loadViewerImage()
 }
 
-async function downloadImage(path) {
-  const { data, error } = await supabaseClient.storage
+async function loadViewerImage() {
+  const img = currentImages[currentIndex]
+
+  const { data } = await supabaseClient.storage
     .from("image_uploads")
-    .download(path)
+    .createSignedUrl(img.storage_path, 60)
 
-  if (error) return alert(error.message)
+  document.getElementById("viewerImage").src = data.signedUrl
+}
 
-  const a = document.createElement("a")
-  a.href = URL.createObjectURL(data)
-  a.download = path.split("/").pop()
-  a.click()
+function closeViewer() {
+  document.getElementById("fileViewer").style.display = "none"
+}
+
+function nextImage() {
+  if (currentIndex < currentImages.length - 1) {
+    currentIndex++
+    loadViewerImage()
+  }
+}
+
+function prevImage() {
+  if (currentIndex > 0) {
+    currentIndex--
+    loadViewerImage()
+  }
+}
+
+/* ===================== TEXT SUBMISSIONS ===================== */
+
+async function submitWork() {
+  const user = (await supabaseClient.auth.getUser()).data.user
+
+  const date = document.getElementById("subDate").value
+  const notebook = document.getElementById("subNotebook").value.trim()
+  const title = document.getElementById("subTitle").value.trim()
+  const content = document.getElementById("subContent").value.trim()
+
+  if (!date || !notebook || !title || !content)
+    return alert("All fields required")
+
+  await supabaseClient.from("submissions").insert({
+    date,
+    notebook,
+    title,
+    content,
+    uploaded_by: user.id,
+    status: "pending"
+  })
+
+  alert("Work submitted for review")
+}
+
+async function loadTextSubmissions() {
+  const q = document.getElementById("textSearch")?.value || ""
+
+  let query = supabaseClient
+    .from("submissions")
+    .select("*")
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+
+  if (q)
+    query = query.or(`title.ilike.%${q}%,content.ilike.%${q}%`)
+
+  const { data } = await query
+  const list = document.getElementById("textList")
+  if (!list) return
+
+  list.innerHTML = ""
+
+  data.forEach(sub => {
+    const li = document.createElement("li")
+    li.innerHTML = `
+      <strong>${sub.title}</strong><br>
+      <span class="muted">${sub.date} · ${sub.notebook}</span><br><br>
+      ${sub.content.substring(0,200)}...
+    `
+    list.appendChild(li)
+  })
 }
 
 /* ===================== ADMIN ===================== */
 
 async function loadPendingImageDirs() {
-  const { data, error } = await supabaseClient
+  const { data } = await supabaseClient
     .from("image_directories")
     .select("*")
     .eq("status", "pending")
-    .order("created_at", { ascending: true })
-
-  if (error) return alert(error.message)
 
   pendingDirs.innerHTML = ""
 
   data.forEach(d => {
     const li = document.createElement("li")
     li.innerHTML = `
-      <strong>${d.name}</strong><br>
-      <span class="muted">Uploader: ${d.uploaded_by}</span><br><br>
+      <strong>${d.name}</strong><br><br>
+      <button onclick="openDirectory('${d.id}')">View</button>
       <button onclick="approveDir('${d.id}')">Approve</button>
       <button class="secondary" onclick="rejectDir('${d.id}')">Reject</button>
     `
@@ -262,33 +314,51 @@ async function loadPendingImageDirs() {
   })
 }
 
+async function loadPendingTextSubmissions() {
+  const { data } = await supabaseClient
+    .from("submissions")
+    .select("*")
+    .eq("status", "pending")
+
+  data.forEach(sub => {
+    const div = document.createElement("div")
+    div.className = "card"
+    div.innerHTML = `
+      <strong>${sub.title}</strong><br>
+      ${sub.content}<br><br>
+      <button onclick="approveText('${sub.id}')">Approve</button>
+      <button class="secondary" onclick="rejectText('${sub.id}')">Reject</button>
+    `
+    adminPanel.appendChild(div)
+  })
+}
+
 async function approveDir(id) {
-  await supabaseClient
-    .from("image_directories")
-    .update({ status: "approved" })
-    .eq("id", id)
-
-  await supabaseClient
-    .from("images")
-    .update({ status: "approved" })
-    .eq("directory_id", id)
-
+  await supabaseClient.from("image_directories")
+    .update({ status: "approved" }).eq("id", id)
+  await supabaseClient.from("images")
+    .update({ status: "approved" }).eq("directory_id", id)
   loadPendingImageDirs()
   loadImageDirs()
 }
 
 async function rejectDir(id) {
-  await supabaseClient
-    .from("image_directories")
-    .update({ status: "rejected" })
-    .eq("id", id)
-
-  await supabaseClient
-    .from("images")
-    .update({ status: "rejected" })
-    .eq("directory_id", id)
-
+  await supabaseClient.from("image_directories")
+    .update({ status: "rejected" }).eq("id", id)
   loadPendingImageDirs()
+}
+
+async function approveText(id) {
+  await supabaseClient.from("submissions")
+    .update({ status: "approved" }).eq("id", id)
+  await loadPendingTextSubmissions()
+  await loadTextSubmissions()
+}
+
+async function rejectText(id) {
+  await supabaseClient.from("submissions")
+    .update({ status: "rejected" }).eq("id", id)
+  await loadPendingTextSubmissions()
 }
 
 /* ===================== AUTO LOGIN ===================== */
