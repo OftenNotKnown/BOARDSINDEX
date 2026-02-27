@@ -1,124 +1,267 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Curriculum Archive</title>
+/* 🔐 SUPABASE CONFIG */
+const SUPABASE_URL = "https://chnjmdbmvjbnxxtllqwc.supabase.co"
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNobmptZGJtdmpibnh4dGxscXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwODM2MTMsImV4cCI6MjA4NzY1OTYxM30.BYGzxR2q3sQGqPJnLLXv0z81JzSm6Ge0GgU-VYVQcRE"
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/browser-image-compression/dist/browser-image-compression.js"></script>
+/* GLOBALS */
+let isAdmin = false
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+const compressionOptions = {
+  maxWidthOrHeight: 1600,
+  initialQuality: 0.5,
+  fileType: "image/webp",
+  useWebWorker: true
+}
 
-  <style>
-    :root {
-      --bg:#f8fafc; --card:#fff; --border:#e5e7eb;
-      --text:#0f172a; --muted:#64748b;
-      --accent:#6366f1; --accent-hover:#4f46e5;
-      --radius:12px;
+/* ELEMENTS */
+const loginDiv = document.getElementById("login")
+const appDiv = document.getElementById("app")
+const adminPanel = document.getElementById("adminPanel")
+const imageDirs = document.getElementById("imageDirs")
+const pendingDirs = document.getElementById("pendingDirs")
+const galleryModal = document.getElementById("galleryModal")
+const galleryGrid = document.getElementById("galleryGrid")
+const galleryTitle = document.getElementById("galleryTitle")
+
+/* ===================== AUTH ===================== */
+
+async function login() {
+  const emailInput = document.getElementById("email").value
+  const passwordInput = document.getElementById("password").value
+
+  if (!emailInput || !passwordInput) {
+    alert("Please enter email and password")
+    return
+  }
+
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email: emailInput,
+    password: passwordInput
+  })
+
+  if (error) {
+    alert(error.message)
+  } else {
+    showApp()
+  }
+}
+
+async function logout() {
+  await supabaseClient.auth.signOut()
+  location.reload()
+}
+
+async function showApp() {
+  loginDiv.style.display = "none"
+  appDiv.style.display = "block"
+
+  const { data } = await supabaseClient.auth.getUser()
+  isAdmin = data.user.email === "arduinodebugstick@outlook.com"
+
+  loadImageDirs()
+
+  if (isAdmin) {
+    adminPanel.style.display = "block"
+    loadPendingImageDirs()
+  }
+}
+
+/* ===================== IMAGE UPLOAD ===================== */
+
+async function uploadImageDirectory() {
+  const user = (await supabaseClient.auth.getUser()).data.user
+  const name = document.getElementById("dirName").value
+  const files = document.getElementById("imageFiles").files
+
+  if (!name || !files.length) {
+    alert("Directory name and images are required")
+    return
+  }
+
+  if (typeof imageCompression !== "function") {
+    alert("Image compression failed to load. Refresh the page.")
+    return
+  }
+
+  const { data: dir, error: dirError } = await supabaseClient
+    .from("image_directories")
+    .insert({ name, uploaded_by: user.id })
+    .select()
+    .single()
+
+  if (dirError) {
+    alert(dirError.message)
+    return
+  }
+
+  for (const file of files) {
+    try {
+      const compressed = await imageCompression(file, compressionOptions)
+      const path = `${user.id}/${dir.id}/${crypto.randomUUID()}.webp`
+
+      const { error: uploadError } = await supabaseClient.storage
+        .from("image_uploads")
+        .upload(path, compressed)
+
+      if (uploadError) {
+        console.error(uploadError)
+        continue
+      }
+
+      await supabaseClient.from("images").insert({
+        directory_id: dir.id,
+        uploaded_by: user.id,
+        storage_path: path,
+        filesize: compressed.size
+      })
+    } catch (err) {
+      console.error("Image failed:", err)
     }
-    *{box-sizing:border-box}
-    body{
-      font-family:'Inter',system-ui,sans-serif;
-      background:var(--bg);color:var(--text);
-      max-width:960px;margin:40px auto;padding:0 20px;
-    }
-    h1{font-size:2rem;margin-bottom:24px}
-    h2{font-size:1.25rem;margin-bottom:12px}
-    label{font-size:.85rem;color:var(--muted);margin-top:12px;display:block}
-    input,textarea{
-      width:100%;padding:10px 12px;margin-top:6px;
-      border-radius:var(--radius);border:1px solid var(--border);
-      font-family:inherit;font-size:.95rem;
-    }
-    button{
-      background:var(--accent);color:#fff;border:none;
-      border-radius:var(--radius);padding:10px 16px;
-      font-weight:600;font-size:.9rem;cursor:pointer;margin-top:12px;
-    }
-    button.secondary{
-      background:transparent;color:var(--text);border:1px solid var(--border);
-    }
-    .card{
-      background:var(--card);border:1px solid var(--border);
-      border-radius:var(--radius);padding:20px;margin-bottom:24px;
-    }
-    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-    ul{list-style:none;padding:0}
-    li{border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
-    .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
-    .muted{color:var(--muted);font-size:.85rem}
-  </style>
-</head>
+  }
 
-<body>
+  alert("Image directory submitted for review")
+  document.getElementById("dirName").value = ""
+  document.getElementById("imageFiles").value = ""
+}
 
-<h1>Curriculum Archive</h1>
+/* ===================== USER GALLERY ===================== */
 
-<!-- LOGIN -->
-<div id="login" class="card">
-  <h2>Login</h2>
-  <input id="email" placeholder="Email" />
-  <input id="password" type="password" placeholder="Password" />
-  <button onclick="login()">Login</button>
-</div>
+async function loadImageDirs() {
+  const q = document.getElementById("dirSearch").value
 
-<!-- APP -->
-<div id="app" style="display:none">
+  let query = supabaseClient
+    .from("image_directories")
+    .select("*")
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
 
-  <div class="top-bar">
-    <h2>Dashboard</h2>
-    <button class="secondary" onclick="logout()">Logout</button>
-  </div>
+  if (q) query = query.ilike("name", `%${q}%`)
 
-  <!-- TEXT SUBMISSION -->
-  <div class="card">
-    <h2>Submit New Work</h2>
-    <div class="row">
-      <input id="subDate" type="date" />
-      <input id="subNotebook" placeholder="Notebook" />
-      <input id="subTitle" placeholder="Title" />
-    </div>
-    <textarea id="subContent" rows="6"></textarea>
-    <button onclick="submitWork()">Submit for Review</button>
-  </div>
+  const { data, error } = await query
+  if (error) return alert(error.message)
 
-  <!-- IMAGE UPLOAD -->
-  <div class="card">
-    <h2>Submit Image Directory</h2>
-    <label>Directory Name</label>
-    <input id="dirName" />
-    <label>Select Images</label>
-    <input id="imageFiles" type="file" multiple accept="image/*" />
-    <button onclick="uploadImageDirectory()">Upload Directory</button>
-  </div>
+  imageDirs.innerHTML = ""
 
-  <!-- IMAGE DIRECTORIES -->
-  <div class="card">
-    <h2>Approved Image Directories</h2>
-    <input id="dirSearch" placeholder="Search" oninput="loadImageDirs()" />
-    <ul id="imageDirs"></ul>
-  </div>
+  data.forEach(d => {
+    const li = document.createElement("li")
+    li.innerHTML = `
+      <strong>${d.name}</strong><br><br>
+      <button onclick="openGallery('${d.id}')">Open</button>
+    `
+    imageDirs.appendChild(li)
+  })
+}
 
-  <!-- ADMIN -->
-  <div id="adminPanel" class="card" style="display:none">
-    <h2>Admin · Pending Image Directories</h2>
-    <ul id="pendingDirs"></ul>
-  </div>
-</div>
+async function openGallery(directoryId) {
+  galleryGrid.innerHTML = ""
+  galleryModal.style.display = "block"
 
-<!-- GALLERY MODAL -->
-<div id="galleryModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;padding:40px">
-  <div class="card" style="max-width:1000px;margin:auto">
-    <div style="display:flex;justify-content:space-between">
-      <h2 id="galleryTitle"></h2>
-      <button class="secondary" onclick="closeGallery()">Close</button>
-    </div>
-    <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px"></div>
-  </div>
-</div>
+  const { data: dir } = await supabaseClient
+    .from("image_directories")
+    .select("name")
+    .eq("id", directoryId)
+    .single()
 
-<script src="app.js"></script>
-</body>
-</html>
+  galleryTitle.textContent = dir.name
+
+  const { data: images, error } = await supabaseClient
+    .from("images")
+    .select("*")
+    .eq("directory_id", directoryId)
+    .eq("status", "approved")
+
+  if (error) return alert(error.message)
+
+  images.forEach(img => {
+    const { data } = supabaseClient.storage
+      .from("image_uploads")
+      .getPublicUrl(img.storage_path)
+
+    const div = document.createElement("div")
+    div.innerHTML = `
+      <img src="${data.publicUrl}" style="width:100%;border-radius:8px">
+      <button class="secondary" style="width:100%;margin-top:6px"
+        onclick="downloadImage('${img.storage_path}')">
+        Download
+      </button>
+    `
+    galleryGrid.appendChild(div)
+  })
+}
+
+function closeGallery() {
+  galleryModal.style.display = "none"
+}
+
+async function downloadImage(path) {
+  const { data, error } = await supabaseClient.storage
+    .from("image_uploads")
+    .download(path)
+
+  if (error) return alert(error.message)
+
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(data)
+  a.download = path.split("/").pop()
+  a.click()
+}
+
+/* ===================== ADMIN ===================== */
+
+async function loadPendingImageDirs() {
+  const { data, error } = await supabaseClient
+    .from("image_directories")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+
+  if (error) return alert(error.message)
+
+  pendingDirs.innerHTML = ""
+
+  data.forEach(d => {
+    const li = document.createElement("li")
+    li.innerHTML = `
+      <strong>${d.name}</strong><br>
+      <span class="muted">Uploader: ${d.uploaded_by}</span><br><br>
+      <button onclick="approveDir('${d.id}')">Approve</button>
+      <button class="secondary" onclick="rejectDir('${d.id}')">Reject</button>
+    `
+    pendingDirs.appendChild(li)
+  })
+}
+
+async function approveDir(id) {
+  await supabaseClient
+    .from("image_directories")
+    .update({ status: "approved" })
+    .eq("id", id)
+
+  await supabaseClient
+    .from("images")
+    .update({ status: "approved" })
+    .eq("directory_id", id)
+
+  loadPendingImageDirs()
+  loadImageDirs()
+}
+
+async function rejectDir(id) {
+  await supabaseClient
+    .from("image_directories")
+    .update({ status: "rejected" })
+    .eq("id", id)
+
+  await supabaseClient
+    .from("images")
+    .update({ status: "rejected" })
+    .eq("directory_id", id)
+
+  loadPendingImageDirs()
+}
+
+/* ===================== AUTO LOGIN ===================== */
+
+supabaseClient.auth.getSession().then(({ data }) => {
+  if (data.session) showApp()
+})
