@@ -1,9 +1,9 @@
 import express from "express"
 import multer from "multer"
 import cors from "cors"
-import { createClient } from "@supabase/supabase-js"
-import Tesseract from "tesseract.js"
 import fs from "fs"
+import Tesseract from "tesseract.js"
+import { createClient } from "@supabase/supabase-js"
 
 const app = express()
 const upload = multer({ dest: "uploads/" })
@@ -16,13 +16,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 )
 
-/* OCR FUNCTION */
-async function runOCR(imagePath) {
-  const result = await Tesseract.recognize(imagePath, "eng")
+async function runOCR(path) {
+  const result = await Tesseract.recognize(path, "eng")
   return result.data.text
 }
 
-/* MAIN ENDPOINT */
 app.post("/process-submission", upload.single("image"), async (req, res) => {
   try {
     const { date, notebook, title, text, user_id } = req.body
@@ -33,20 +31,24 @@ app.post("/process-submission", upload.single("image"), async (req, res) => {
     if (req.file) {
       hasImage = true
       ocrText = await runOCR(req.file.path)
-      fs.unlinkSync(req.file.path) // cleanup
+      fs.unlinkSync(req.file.path)
     }
 
-    const contentObject = {
+    const content = {
       version: 1,
       input: {
-        pasted_text: !!text,
+        text: !!text,
         image: hasImage
       },
       extracted: {
-        ocr_text: ocrText.trim(),
-        pasted_text: text || ""
+        pasted_text: text || "",
+        ocr_text: ocrText.trim()
       },
-      summary: generateSummary(text, ocrText),
+      summary: hasImage && text
+        ? "Text + image submission"
+        : hasImage
+        ? "Image submission"
+        : "Text submission",
       confidence: {
         ocr: hasImage ? 0.6 : null
       }
@@ -58,14 +60,14 @@ app.post("/process-submission", upload.single("image"), async (req, res) => {
         date,
         notebook,
         title,
-        content: JSON.stringify(contentObject),
+        content: JSON.stringify(content),
         submitted_by: user_id,
         status: "pending"
       })
 
     if (error) {
       console.error(error)
-      return res.status(500).send("Database insert failed")
+      return res.status(500).send("DB error")
     }
 
     res.send("OK")
@@ -75,13 +77,6 @@ app.post("/process-submission", upload.single("image"), async (req, res) => {
   }
 })
 
-function generateSummary(pasted, ocr) {
-  if (pasted && ocr) return "Text + image submission"
-  if (pasted) return "Text submission"
-  if (ocr) return "Image submission (OCR)"
-  return "Empty submission"
-}
-
-app.listen(process.env.PORT, () => {
-  console.log(`Server running on port ${process.env.PORT}`)
-})
+app.listen(process.env.PORT, () =>
+  console.log("Server running on port", process.env.PORT)
+)
