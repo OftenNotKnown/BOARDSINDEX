@@ -256,7 +256,7 @@ async function submitWork() {
     notebook,
     title,
     content,
-    uploaded_by: user.id,
+    submitted_by: user.id,
     status: "pending"
   })
 
