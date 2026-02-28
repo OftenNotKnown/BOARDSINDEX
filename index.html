@@ -87,14 +87,14 @@
       margin-bottom:24px
     }
 
-    /* === OSDG STRIPES ADDITION (DO NOT TOUCH ANYTHING ELSE) === */
+    /* === OSDG HORIZONTAL STRIPES (ONLY ADDITION) === */
     .osdg-mark{
       position:fixed;
       top:20px;
       right:20px;
       display:flex;
-      align-items:flex-start;
-      gap:10px;
+      align-items:center;
+      gap:12px;
       z-index:3000;
       font-family:'Inter',system-ui,sans-serif;
     }
@@ -106,19 +106,19 @@
     }
 
     .osdg-stripe{
-      width:8px;
+      height:6px;
+      border-radius:2px;
     }
 
-    .osdg-yellow{height:20px;background:#facc15;}
-    .osdg-green{height:30px;background:#22c55e;}
-    .osdg-blue{height:40px;background:#3b82f6;}
-    .osdg-red{height:50px;background:#ef4444;}
+    .osdg-yellow{width:40px;background:#facc15;}
+    .osdg-green{width:60px;background:#22c55e;}
+    .osdg-blue{width:80px;background:#3b82f6;}
+    .osdg-red{width:100px;background:#ef4444;}
 
     .osdg-text{
       font-weight:600;
       font-size:0.9rem;
       white-space:nowrap;
-      align-self:center;
     }
     /* === END ADDITION === */
   </style>
@@ -126,7 +126,7 @@
 
 <body>
 
-<!-- OSDG STRIPES MARK -->
+<!-- OSDG MARK -->
 <div class="osdg-mark">
   <div class="osdg-stripes">
     <div class="osdg-stripe osdg-yellow"></div>
@@ -155,7 +155,6 @@
     <button class="secondary" onclick="logout()">Logout</button>
   </div>
 
-  <!-- TEXT SUBMISSION -->
   <div class="card">
     <h2>Submit New Work</h2>
     <input id="subDate" type="date" />
@@ -165,7 +164,6 @@
     <button onclick="submitWork()">Submit for Review</button>
   </div>
 
-  <!-- IMAGE UPLOAD -->
   <div class="card">
     <h2>Submit Image Directory</h2>
     <input id="dirName" placeholder="Directory Name" />
@@ -173,33 +171,27 @@
     <button onclick="uploadImageDirectory()">Upload Directory</button>
   </div>
 
-  <!-- APPROVED DIRECTORIES -->
   <div class="card">
     <h2>Approved Directories</h2>
     <input id="dirSearch" placeholder="Search directories" oninput="loadImageDirs()" />
     <ul id="imageDirs"></ul>
   </div>
 
-  <!-- APPROVED TEXT -->
   <div class="card">
     <h2>Approved Text Submissions</h2>
     <input id="textSearch" placeholder="Search text" oninput="loadTextSubmissions()" />
     <ul id="textList"></ul>
   </div>
 
-  <!-- ADMIN PANEL -->
   <div id="adminPanel" class="card" style="display:none">
     <h2>Admin Panel</h2>
-
     <h3>Pending Image Directories</h3>
     <ul id="pendingDirs"></ul>
-
     <h3>Pending Text Submissions</h3>
   </div>
 
 </div>
 
-<!-- DIRECTORY VIEW MODAL -->
 <div id="galleryModal" 
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
      z-index:1000;padding:40px;overflow:auto">
@@ -213,7 +205,6 @@
   </div>
 </div>
 
-<!-- FULLSCREEN IMAGE VIEWER -->
 <div id="fileViewer" 
      style="display:none;position:fixed;inset:0;background:black;z-index:2000;">
 
