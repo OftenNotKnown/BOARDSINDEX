@@ -86,19 +86,61 @@
       align-items:center;
       margin-bottom:24px
     }
+
+    /* ===== OSDG MARK ===== */
+    .osdg-mark{
+      position:fixed;
+      top:20px;
+      right:20px;
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      z-index:3000;
+    }
+
+    .stripes{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .stripe{
+      height:6px;
+      border-radius:4px;
+    }
+
+    .stripe.yellow{background:#facc15;width:18px;}
+    .stripe.green{background:#22c55e;width:26px;}
+    .stripe.blue{background:#3b82f6;width:34px;}
+    .stripe.red{background:#ef4444;width:42px;}
+
+    .osdg-text{
+      font-weight:600;
+      font-size:.9rem;
+      color:var(--text);
+      line-height:1;
+      padding-top:2px;
+      white-space:nowrap;
+    }
+    /* ==================== */
   </style>
 </head>
 
 <body>
 
-<h1>Curriculum Archive</h1>
-<button onclick="redirectToApp()">Open App</button>
+<!-- OSDG TOP-RIGHT MARK -->
+<div class="osdg-mark">
+  <div class="stripes">
+    <div class="stripe yellow"></div>
+    <div class="stripe green"></div>
+    <div class="stripe blue"></div>
+    <div class="stripe red"></div>
+  </div>
+  <div class="osdg-text">OSDG – Sneh</div>
+</div>
 
-<script>
-  function redirectToApp() {
-    window.location.href = "https://ephemeral-chat--holderplace262.replit.app";
-  }
-</script>
+<h1>Curriculum Archive</h1>
+
 <!-- LOGIN -->
 <div id="login" class="card">
   <h2>Login</h2>
@@ -115,7 +157,6 @@
     <button class="secondary" onclick="logout()">Logout</button>
   </div>
 
-  <!-- TEXT SUBMISSION -->
   <div class="card">
     <h2>Submit New Work</h2>
     <input id="subDate" type="date" />
@@ -125,7 +166,6 @@
     <button onclick="submitWork()">Submit for Review</button>
   </div>
 
-  <!-- IMAGE UPLOAD -->
   <div class="card">
     <h2>Submit Image Directory</h2>
     <input id="dirName" placeholder="Directory Name" />
@@ -133,70 +173,25 @@
     <button onclick="uploadImageDirectory()">Upload Directory</button>
   </div>
 
-  <!-- APPROVED DIRECTORIES -->
   <div class="card">
     <h2>Approved Directories</h2>
     <input id="dirSearch" placeholder="Search directories" oninput="loadImageDirs()" />
     <ul id="imageDirs"></ul>
   </div>
 
-  <!-- APPROVED TEXT -->
   <div class="card">
     <h2>Approved Text Submissions</h2>
     <input id="textSearch" placeholder="Search text" oninput="loadTextSubmissions()" />
     <ul id="textList"></ul>
   </div>
 
-  <!-- ADMIN PANEL -->
   <div id="adminPanel" class="card" style="display:none">
     <h2>Admin Panel</h2>
-
     <h3>Pending Image Directories</h3>
     <ul id="pendingDirs"></ul>
-
     <h3>Pending Text Submissions</h3>
   </div>
 
-</div>
-
-<!-- DIRECTORY VIEW MODAL -->
-<div id="galleryModal" 
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
-     z-index:1000;padding:40px;overflow:auto">
-
-  <div class="card" style="max-width:900px;margin:auto">
-    <div style="display:flex;justify-content:space-between">
-      <h2 id="galleryTitle"></h2>
-      <button class="secondary" onclick="closeGallery()">Close</button>
-    </div>
-    <div id="galleryGrid" style="margin-top:20px"></div>
-  </div>
-</div>
-
-<!-- FULLSCREEN IMAGE VIEWER -->
-<div id="fileViewer" 
-     style="display:none;position:fixed;inset:0;background:black;z-index:2000;">
-
-  <button onclick="closeViewer()" 
-    style="position:absolute;top:20px;right:20px;background:white;border:none;padding:8px 12px;cursor:pointer">
-    X
-  </button>
-
-  <button onclick="prevImage()" 
-    style="position:absolute;left:20px;top:50%;transform:translateY(-50%);
-    background:white;border:none;padding:10px;cursor:pointer">
-    ◀
-  </button>
-
-  <button onclick="nextImage()" 
-    style="position:absolute;right:20px;top:50%;transform:translateY(-50%);
-    background:white;border:none;padding:10px;cursor:pointer">
-    ▶
-  </button>
-
-  <img id="viewerImage"
-    style="display:block;margin:auto;max-height:95vh;max-width:95vw;
-    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
 </div>
 
 <script src="app.js"></script>
