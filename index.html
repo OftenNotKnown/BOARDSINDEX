@@ -87,7 +87,7 @@
       margin-bottom:24px
     }
 
-    /* === OSDG HORIZONTAL STRIPES (ONLY ADDITION) === */
+    /* === OSDG HORIZONTAL STRIPES === */
     .osdg-mark{
       position:fixed;
       top:20px;
@@ -120,7 +120,6 @@
       font-size:0.9rem;
       white-space:nowrap;
     }
-    /* === END ADDITION === */
   </style>
 </head>
 
@@ -138,12 +137,7 @@
 </div>
 
 <h1>Curriculum Archive</h1>
-<script>
-  function Discussions() {
-    window.location.href = "https://ephemeral-chat--holderplace262.replit.app";
-  }
-</script>
-  
+
 <!-- LOGIN -->
 <div id="login" class="card">
   <h2>Login</h2>
@@ -157,7 +151,15 @@
 
   <div class="top-bar">
     <h2>Dashboard</h2>
-    <button class="secondary" onclick="logout()">Logout</button>
+    <div>
+      <!-- ✅ ADDED BUTTON (POST-LOGIN ONLY) -->
+      <button class="secondary"
+        onclick="window.location.href='https://ephemeral-chat-holderplace262.replit.app'">
+        Open Chat
+      </button>
+
+      <button class="secondary" onclick="logout()">Logout</button>
+    </div>
   </div>
 
   <div class="card">
